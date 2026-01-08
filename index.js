@@ -1,10 +1,18 @@
-const path = require("path");
-const express = require("express");
-const cors = require("cors");
-const morgan = require("morgan");
-const { init: initDB, Counter } = require("./db");
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const logger = morgan("tiny");
+import cors from 'cors';
+import express from 'express';
+import morgan from 'morgan';
+
+import { init as initDB, Kv } from './db.js';
+import { createSequelizeKvAdapter } from './ruminer/kvAdapter.js';
+import { mountRuminerWeChatRoutes } from './ruminer/wechatRoutes.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const logger = morgan('tiny');
 
 const app = express();
 app.use(express.urlencoded({ extended: false }));
@@ -13,48 +21,34 @@ app.use(cors());
 app.use(logger);
 
 // 首页
-app.get("/", async (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
+app.get('/', async (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// 更新计数
-app.post("/api/count", async (req, res) => {
-  const { action } = req.body;
-  if (action === "inc") {
-    await Counter.create();
-  } else if (action === "clear") {
-    await Counter.destroy({
-      truncate: true,
-    });
-  }
-  res.send({
-    code: 0,
-    data: await Counter.count(),
-  });
-});
 
-// 获取计数
-app.get("/api/count", async (req, res) => {
-  const result = await Counter.count();
-  res.send({
-    code: 0,
-    data: result,
-  });
-});
-
-// 小程序调用，获取微信 Open ID
-app.get("/api/wx_openid", async (req, res) => {
-  if (req.headers["x-wx-source"]) {
-    res.send(req.headers["x-wx-openid"]);
-  }
-});
 
 const port = process.env.PORT || 80;
 
 async function bootstrap() {
   await initDB();
+
+  const kv = createSequelizeKvAdapter({ Kv });
+  const env = {
+    ...process.env,
+    RUMI_KV: kv,
+  };
+  const ctx = {
+    waitUntil(promise) {
+      Promise.resolve(promise).catch((err) => {
+        console.error('waitUntil_error', err);
+      });
+    },
+  };
+
+  mountRuminerWeChatRoutes(app, { env, ctx });
+
   app.listen(port, () => {
-    console.log("启动成功", port);
+    console.log('启动成功', port);
   });
 }
 
