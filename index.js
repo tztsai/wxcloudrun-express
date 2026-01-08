@@ -6,8 +6,8 @@ import express from 'express';
 import morgan from 'morgan';
 
 import { init as initDB, Kv } from './db.js';
-import { createSequelizeKvAdapter } from './ruminer/kvAdapter.js';
-import { mountRuminerWeChatRoutes } from './ruminer/wechatRoutes.js';
+import { createSequelizeKvAdapter } from './src/kvAdapter.js';
+import { mountRuminerWeChatRoutes } from './src/wechatRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
